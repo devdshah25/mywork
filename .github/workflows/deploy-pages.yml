@@ -1,36 +1,37 @@
-name: Deploy to GitHub Pages
+# Deploys repository root to gh-pages branch (works for plain static sites)
+name: Deploy to GitHub Pages (gh-pages branch)
 
 on:
   push:
     branches:
-      - main  # change to 'master' or your branch name if different
+      - main   # change if your default branch is not 'main'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Prepare site files
+      - name: Prepare public folder
         run: |
-          # copy repository contents to 'public' folder for Pages artifact
           rm -rf public
           mkdir -p public
+          # copy the repo contents into public, excluding the workflow files and .git
           rsync -a --delete --exclude='.git' --exclude='.github' ./ public/
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v3
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v1
-        with:
-          path: public
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+      - name: Deploy to gh-pages branch
+        env:
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd public
+          git init
+          git checkout -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "Deploy to GitHub Pages: ${GITHUB_SHA}" || echo "nothing to commit"
+          # Force-push the public folder to the remote gh-pages branch
+          git push --force "https://x-access-token:${TOKEN}@github.com/${REPO}.git" gh-pages
